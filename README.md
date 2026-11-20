@@ -5,7 +5,7 @@
 ADRISHTA is an experimental, contactless sensing platform built around **Wi-Fi Channel State Information (signals)**. A distributed ESP32 network captures changes in the wireless channel caused by movement in an indoor environment. The captured signals is transported to a cloud backend, where the processing pipeline derives live sensing metrics and makes the results available through a web dashboard.
 
 - **Live dashboard:** [https://adrishta.live](https://adrishta.live)
-- **Source code:** [github.com/gautamsharma2004/ADRISHTA](https://github.com/gautamsharma2004/ADRISHTA)
+- **Source code:** [github.com/gautamsharma2004/ADRISHTA](https://github.com/gautamsharma2004/ADRISHTA-part1)
 - **Firmware framework:** ESP-IDF 5.x
 - **Wireless transport between nodes:** ESP-NOW
 - **Hub-to-server transport:** UART serial bridge over secure WebSocket (WSS)
@@ -385,4 +385,4 @@ Potential development directions include:
 
 
 
-For bugs, questions or technical discussion, open an issue in the [ADRISHTA GitHub repository](https://github.com/gautamsharma2004/ADRISHTA).
+For bugs, questions or technical discussion, open an issue in the [ADRISHTA GitHub repository](https://github.com/gautamsharma2004/ADRISHTA-part1).

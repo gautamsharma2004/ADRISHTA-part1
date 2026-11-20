@@ -1,8 +1,8 @@
-# ADRISHTA — Multi-Node Wi-Fi CSI Sensing Platform
+# ADRISHTA — Multi-Node Wi-Fi signals Sensing Platform
 
 **Invisible waves. Intelligent sensing.**
 
-ADRISHTA is an experimental, contactless sensing platform built around **Wi-Fi Channel State Information (CSI)**. A distributed ESP32 network captures changes in the wireless channel caused by movement in an indoor environment. The captured CSI is transported to a cloud backend, where the processing pipeline derives live sensing metrics and makes the results available through a web dashboard.
+ADRISHTA is an experimental, contactless sensing platform built around **Wi-Fi Channel State Information (signals)**. A distributed ESP32 network captures changes in the wireless channel caused by movement in an indoor environment. The captured signals is transported to a cloud backend, where the processing pipeline derives live sensing metrics and makes the results available through a web dashboard.
 
 - **Live dashboard:** [https://adrishta.live](https://adrishta.live)
 - **Source code:** [github.com/gautamsharma2004/ADRISHTA](https://github.com/gautamsharma2004/ADRISHTA)
@@ -23,7 +23,7 @@ ADRISHTA is an experimental, contactless sensing platform built around **Wi-Fi C
 - [Hardware node roles](#hardware-node-roles)
 - [Cloud deployment and data flow](#cloud-deployment-and-data-flow)
 - [Dashboard features](#dashboard-features)
-- [CSI data format](#csi-data-format)
+- [ data format](#-data-format)
 - [UART commands](#uart-commands)
 - [Hardware and software requirements](#hardware-and-software-requirements)
 - [Firmware setup and flashing](#firmware-setup-and-flashing)
@@ -39,32 +39,32 @@ ADRISHTA is an experimental, contactless sensing platform built around **Wi-Fi C
 The system uses one transmitter and three receiving nodes:
 
 1. A **TX node** periodically broadcasts ESP-NOW packets.
-2. A **Hub RX node** captures its own CSI and receives CSI forwarded by the satellite nodes.
-3. Two **Satellite RX nodes** independently capture CSI and forward selected packets to the hub.
+2. A **Hub RX node** captures its own signals and receives signals forwarded by the satellite nodes.
+3. Two **Satellite RX nodes** independently capture signals and forward selected packets to the hub.
 4. The hub emits a unified UART stream to a computer.
 5. A local serial bridge forwards the stream to the cloud backend through a secure WebSocket connection.
-6. The backend performs CSI parsing and sensing calculations. The browser dashboard receives live results from the server.
+6. The backend performs signals parsing and sensing calculations. The browser dashboard receives live results from the server.
 
-This separates hardware acquisition from application processing. The ESP32 firmware remains responsible for packet transmission, CSI capture, forwarding and UART output; the cloud application handles the higher-level processing and dashboard data.
+This separates hardware acquisition from application processing. The ESP32 firmware remains responsible for packet transmission, signals capture, forwarding and UART output; the cloud application handles the higher-level processing and dashboard data.
 
 ## System architecture
 
 ```mermaid
 flowchart TD
     TX["ESP32 TX node<br/>ESP-NOW beacon · 100 Hz"]
-    RX0["ESP32 Hub RX<br/>Local CSI + satellite aggregation"]
+    RX0["ESP32 Hub RX<br/>Local signals + satellite aggregation"]
     RX1["ESP32 Satellite RX 1"]
     RX2["ESP32 Satellite RX 2"]
     PC["Computer / RX Hub USB"]
     BRIDGE["serial_bridge.py<br/>UART reader + WebSocket client"]
-    CLOUD["ADRISHTA cloud backend<br/>FastAPI · CSI processing"]
+    CLOUD["ADRISHTA cloud backend<br/>FastAPI · signals processing"]
     WEB["ADRISHTA web dashboard<br/>Live results over WebSocket"]
 
     TX -. "ESP-NOW" .-> RX0
-    TX -. "ESP-NOW / CSI capture" .-> RX1
-    TX -. "ESP-NOW / CSI capture" .-> RX2
-    RX1 -. "Forwarded CSI via ESP-NOW" .-> RX0
-    RX2 -. "Forwarded CSI via ESP-NOW" .-> RX0
+    TX -. "ESP-NOW / signals capture" .-> RX1
+    TX -. "ESP-NOW / signals capture" .-> RX2
+    RX1 -. "Forwarded signals via ESP-NOW" .-> RX0
+    RX2 -. "Forwarded signals via ESP-NOW" .-> RX0
     RX0 -->|"Unified CSV over UART"| PC
     PC --> BRIDGE
     BRIDGE -->|"WSS: /ws/ingest"| CLOUD
@@ -75,13 +75,13 @@ flowchart TD
 
 `TX → RX nodes → Hub RX → UART → serial_bridge.py → WSS → cloud processing → dashboard`
 
-The browser is a presentation and monitoring client. The CSI processing pipeline runs on the server rather than being exposed as client-side algorithm code.
+The browser is a presentation and monitoring client. The signals processing pipeline runs on the server rather than being exposed as client-side algorithm code.
 
 ## Hardware node roles
 
 ### 1. TX node (transmitter)
 
-- **Role:** Acts as the wireless beacon that triggers CSI capture at the receiver nodes.
+- **Role:** Acts as the wireless beacon that triggers signals capture at the receiver nodes.
 - **Firmware:** TX-node firmware.
 - **Packet rate:** Configured to broadcast at approximately 100 Hz.
 - **Wireless configuration:** Wi-Fi Channel 11, HT20, MCS0, LGI PHY rate.
@@ -90,9 +90,9 @@ The browser is a presentation and monitoring client. The CSI processing pipeline
 ### 2. Hub RX node (Node 0)
 
 - **Role:** Central receiver and aggregation point.
-- **Firmware:** `csi_rx_hub_main.c`.
-- Captures CSI locally from the TX node.
-- Receives CSI frames forwarded by Satellite RX 1 and Satellite RX 2 using ESP-NOW.
+- **Firmware:** `signals_rx_hub_main.c`.
+- Captures signals locally from the TX node.
+- Receives signals frames forwarded by Satellite RX 1 and Satellite RX 2 using ESP-NOW.
 - Synchronizes timestamps and emits a unified CSV stream over UART.
 - Accepts UART commands for configuration and diagnostics.
 - Connects to the computer over USB/UART.
@@ -100,9 +100,9 @@ The browser is a presentation and monitoring client. The CSI processing pipeline
 ### 3. Satellite RX nodes (Nodes 1 and 2)
 
 - **Role:** Distributed receivers placed at different positions in the monitored room.
-- **Firmware:** `csi_rx_satellite_main.c`.
-- Capture CSI from the TX node.
-- Forward captured CSI to the Hub RX node over ESP-NOW.
+- **Firmware:** `signals_rx_satellite_main.c`.
+- Capture signals from the TX node.
+- Forward captured signals to the Hub RX node over ESP-NOW.
 - Forward every second packet (approximately 50 Hz from a 100 Hz source) to reduce wireless forwarding load.
 
 The receiver nodes provide multiple spatial perspectives of the same environment. The link-activity visualization represents activity on the TX-to-RX links; **it is not a map and does not provide a person's physical location**.
@@ -115,20 +115,20 @@ ADRISHTA is deployed as a publicly accessible website at **[adrishta.live](https
 
 1. The Hub RX is connected to the acquisition computer through USB/UART.
 2. `serial_bridge.py` reads the hub's UART stream.
-3. The bridge forwards incoming CSI records to the backend using a secure WebSocket connection:
+3. The bridge forwards incoming signals records to the backend using a secure WebSocket connection:
    `wss://adrishta.live/ws/ingest`
-4. The cloud backend receives the stream and runs the CSI processing pipeline.
+4. The cloud backend receives the stream and runs the signals processing pipeline.
 5. The website obtains live processed updates from the backend over WebSocket and renders the dashboard.
 
 ### Deployment components
 
 | Component | Responsibility |
 |---|---|
-| ESP32 firmware | Packet transmission, CSI capture, inter-node forwarding and UART output |
+| ESP32 firmware | Packet transmission, signals capture, inter-node forwarding and UART output |
 | Acquisition computer | Runs the serial bridge and connects the hub to the internet |
 | `serial_bridge.py` | Reads UART data and forwards it to the cloud ingestion WebSocket |
-| FastAPI backend | Ingests CSI data and runs server-side processing |
-| Processing engine | CSI parsing and sensing calculations, including motion/presence and experimental breathing/fall analysis |
+| FastAPI backend | Ingests signals data and runs server-side processing |
+| Processing engine | signals parsing and sensing calculations, including motion/presence and experimental breathing/fall analysis |
 | Nginx + HTTPS | Public web serving and secure reverse-proxy deployment |
 | Web dashboard | Displays live results and provides controls for monitoring and data collection |
 
@@ -190,12 +190,12 @@ Collected windows can be exported for offline analysis and model development. Th
 
 ![ADRISHTA fall-event detection controls and dataset collector](docs/images/architecture3.png)
 
-## CSI data format
+## signals data format
 
 The Hub RX emits a unified CSV record in the following format:
 
 ```csv
-CSI_DATA,<rx_id>,<ms>,<rssi>,<sc0>,<sc1>,...,<sc51>
+signals_DATA,<rx_id>,<ms>,<rssi>,<sc0>,<sc1>,...,<sc51>
 ```
 
 | Field | Description |
@@ -203,7 +203,7 @@ CSI_DATA,<rx_id>,<ms>,<rssi>,<sc0>,<sc1>,...,<sc51>
 | `rx_id` | Receiver identifier: `0` = Hub RX, `1` = Satellite RX 1, `2` = Satellite RX 2 |
 | `ms` | Hub-synchronized timestamp in milliseconds |
 | `rssi` | Received Signal Strength Indicator |
-| `sc0` … `sc51` | 52 CSI amplitude subcarrier values |
+| `sc0` … `sc51` | 52 signals amplitude subcarrier values |
 
 The stream is aggregated at the hub so the computer-side bridge can forward records through a single serial connection.
 
@@ -268,13 +268,13 @@ Use the MAC address printed by your own board; the example above is only a forma
 ### Step 3 — Flash the Hub RX
 
 1. Connect the second ESP32 to the computer.
-2. Build and flash the Hub RX firmware (`csi_rx_hub_main.c`).
-3. Open the serial monitor and confirm that the hub starts receiving CSI data.
+2. Build and flash the Hub RX firmware (`signals_rx_hub_main.c`).
+3. Open the serial monitor and confirm that the hub starts receiving signals data.
 4. Keep this board connected to the acquisition computer over USB/UART.
 
 ### Step 4 — Flash the Satellite RX nodes
 
-1. Open `csi_rx_satellite_main.c`.
+1. Open `signals_rx_satellite_main.c`.
 2. Set `SAT_NODE_ID` to `1` and flash the third ESP32.
 3. Change `SAT_NODE_ID` to `2` and flash the fourth ESP32.
 4. Power the satellite nodes and position them at the required receiver locations.
@@ -289,7 +289,7 @@ Connect to the Hub RX serial port at the configured baud rate (the dashboard scr
 The public dashboard is hosted at:
 
 - **Website:** [https://adrishta.live](https://adrishta.live)
-- **CSI ingestion WebSocket:** `wss://adrishta.live/ws/ingest`
+- **signals ingestion WebSocket:** `wss://adrishta.live/ws/ingest`
 
 The deployed service uses a FastAPI application served by Uvicorn, with Nginx handling the public HTTPS-facing web deployment.
 
@@ -299,7 +299,7 @@ The ingestion bridge must be configured with the server's ingestion credential. 
 ADRISHTA_INGEST_TOKEN
 ```
 
-Server-side processing is intentional: the browser should consume the backend's live outputs rather than contain the private CSI-processing implementation.
+Server-side processing is intentional: the browser should consume the backend's live outputs rather than contain the private signals-processing implementation.
 
 ## Running the serial bridge
 
@@ -309,7 +309,7 @@ At a high level, the bridge must:
 
 1. Open the correct USB/UART serial device.
 2. Use the baud rate configured for the Hub RX (115200 in the shown deployment).
-3. Read complete CSI records from the serial stream.
+3. Read complete signals records from the serial stream.
 4. Authenticate to the ingestion endpoint using the configured ingestion token.
 5. Forward records to `wss://adrishta.live/ws/ingest`.
 6. Reconnect and report errors if the serial device or network connection drops.
@@ -338,7 +338,7 @@ Use consistent labels and subject/room identifiers across sessions. Keep a separ
 - **Breathing-rhythm estimation is experimental.** The dashboard estimate can be affected by movement, multipath changes, receiver placement and environmental noise.
 - **Fall detection is experimental and unverified.** Sudden ordinary movements can resemble a fall, and some falls may not trigger an alert. The dashboard explicitly treats an event as a possible fall rather than a confirmed event.
 - **Link activity is not localization.** Receiver-link measurements do not directly provide coordinates or a person's physical location.
-- **Performance depends on deployment.** Room geometry, interference, antenna orientation, node spacing, packet loss and human activity can change the CSI signal.
+- **Performance depends on deployment.** Room geometry, interference, antenna orientation, node spacing, packet loss and human activity can change the signals signal.
 
 Before any real-world safety use, the detection pipeline requires systematic testing with representative users, activities, room layouts and failure cases. It must not replace a certified fall-detection or emergency-response system.
 
@@ -349,13 +349,13 @@ The firmware and deployment filenames can vary as the project evolves. The princ
 ```text
 ADRISHTA/
 ├── TX firmware                 # ESP-NOW transmitter
-├── csi_rx_hub_main.c           # Hub RX firmware
-├── csi_rx_satellite_main.c     # Satellite RX firmware
+├── signals_rx_hub_main.c           # Hub RX firmware
+├── signals_rx_satellite_main.c     # Satellite RX firmware
 ├── serial_bridge.py            # UART-to-cloud WebSocket bridge
 ├── backend/
 │   └── app/
 │       ├── main.py             # FastAPI application / API and WebSocket endpoints
-│       └── engine.py            # CSI processing engine
+│       └── engine.py            # signals processing engine
 ├── index.html                  # Web dashboard (deployment copy)
 └── docs/
     └── images/

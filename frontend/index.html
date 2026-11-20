@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Adrishta · Invisible waves, Intelligent sensing</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --accent:#22d3ee; --state:#64748b; }
+  body { font-family:'Inter',sans-serif; color:#e5e7eb; overflow-x:hidden;
+    background: radial-gradient(1200px 600px at 10% -10%, rgba(34,211,238,.12), transparent 60%),
+                radial-gradient(900px 500px at 100% 0%, rgba(168,85,247,.12), transparent 60%), #070b14; }
+  .mono { font-family:'JetBrains Mono',ui-monospace,monospace; }
+  .card { background:linear-gradient(180deg,rgba(21,29,46,.85),rgba(12,18,32,.9)); border:1px solid rgba(71,85,105,.45);
+    box-shadow:0 12px 30px -12px rgba(0,0,0,.7); backdrop-filter:blur(8px); transition:border-color .25s; }
+  .card:hover { border-color:rgba(34,211,238,.4); }
+  .btn { transition:all .2s; } .btn:hover:not(:disabled) { transform:translateY(-1px); } .btn:active:not(:disabled) { transform:scale(.97); }
+  .orb { position:relative; width:104px; height:104px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    background:radial-gradient(circle at 35% 30%, color-mix(in srgb,var(--state) 55%,white), var(--state) 55%, #0b1220 120%);
+    box-shadow:0 0 40px color-mix(in srgb,var(--state) 55%,transparent); transition:background .5s, box-shadow .5s; }
+  .orb::before,.orb::after { content:''; position:absolute; inset:0; border-radius:50%; border:2px solid var(--state); animation:ripple 2.6s ease-out infinite; }
+  .orb::after { animation-delay:1.3s; }
+  @keyframes ripple { 0%{transform:scale(1);opacity:.7} 100%{transform:scale(1.8);opacity:0} }
+  .tab-on { background:linear-gradient(90deg,#06b6d4,#3b82f6); color:#021018; }
+  .fade-in { animation:fadeIn .35s ease; } @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+  .toast { animation:fadeIn .25s ease; }
+  .locked { opacity:.4; cursor:not-allowed; }
+  ::-webkit-scrollbar{width:6px;height:6px} ::-webkit-scrollbar-thumb{background:#374151;border-radius:3px}
+  input[type=range]{accent-color:var(--accent)}
+</style>
+</head>
+<body class="min-h-screen flex flex-col">
+<div id="toasts" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+<!-- Operator login -->
+<div id="adminModal" class="hidden fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
+  <div class="card rounded-2xl p-5 w-80 space-y-3">
+    <h3 class="text-sm font-bold text-white">Operator login</h3>
+    <input id="adminKey" type="password" autocomplete="off" placeholder="Admin key" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm mono"/>
+    <div class="flex justify-end gap-2 text-xs">
+      <button id="adminCancel" class="btn px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700">Cancel</button>
+      <button id="adminOk" class="btn px-3 py-1.5 rounded-lg bg-cyan-400 text-slate-950 font-semibold">Sign in</button>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="sticky top-0 z-40 bg-[#070b14]/85 backdrop-blur-xl border-b border-slate-800 px-4 py-3">
+  <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
+        <svg class="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.1 16.4a5.5 5.5 0 017.8 0M12 20h.01M4.9 12.9a10 10 0 0114.2 0M1.4 9.4a15 15 0 0121.2 0"/></svg>
+      </div>
+      <div>
+        <h1 class="text-2xl font-extrabold tracking-tight leading-none bg-gradient-to-r from-cyan-300 via-sky-300 to-violet-400 bg-clip-text text-transparent">Adrishta</h1>
+        <p class="text-[11px] text-slate-400 mt-1 tracking-wide">Invisible waves, Intelligent sensing</p>
+        <div class="flex items-center gap-2 mt-1">
+          <span id="dot" class="w-2 h-2 rounded-full bg-rose-500"></span>
+          <span id="connBadge" class="text-[11px] mono text-rose-300">Server offline</span>
+          <span id="calChip" class="text-[10px] mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">Not calibrated</span>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-1.5 text-xs">
+      <button id="btnAdmin" class="btn px-3 py-1.5 rounded-lg font-semibold bg-violet-600 hover:bg-violet-500 text-white">Operator login</button>
+      <button id="btnPause" class="btn px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700">Pause</button>
+      <select id="cmapSelect" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5">
+        <option>inferno</option><option>viridis</option><option>plasma</option><option>magma</option><option>cividis</option>
+      </select>
+      <label class="flex items-center gap-1.5 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 cursor-pointer">
+        <input id="chkDelta" type="checkbox" class="accent-amber-500"/><span>Change vs baseline</span></label>
+      <button id="btnCalib" class="admin-only btn px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-amber-300">Calibrate (5 s)</button>
+      <button id="btnReset" class="btn px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700">Reset view</button>
+      <button id="btnAudio" class="btn px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700">🔔 Off</button>
+    </div>
+  </div>
+  <nav class="max-w-7xl mx-auto mt-3 flex gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800 w-fit">
+    <button id="tabOcc" class="btn tab-on px-4 py-1.5 rounded-lg text-xs font-semibold">Live Sensing</button>
+    <button id="tabFall" class="btn px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-300">Fall Events &amp; Dataset</button>
+  </nav>
+</header>
+
+<!-- Browser-to-cloud RX Hub gateway (operator only) -->
+<div class="max-w-7xl w-full mx-auto px-4 pt-3">
+  <div class="card rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+    <div class="min-w-0">
+      <p class="text-xs font-bold text-slate-200">Hardware input · RX Hub USB</p>
+      <p id="serialStatus" class="text-[11px] mono text-slate-400 mt-1">Disconnected · operator login required</p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <select id="baudSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-xs mono" aria-label="RX Hub UART baud rate">
+        <option value="115200" selected>115200 baud</option>
+        <option value="460800">460800 baud</option>
+        <option value="921600">921600 baud</option>
+      </select>
+      <button id="btnSerial" class="admin-only btn px-3 py-2 rounded-lg text-xs font-semibold bg-cyan-400 hover:bg-cyan-300 text-slate-950" disabled>Connect RX Hub</button>
+      <span id="serialStats" class="text-[11px] mono text-slate-400">0 CSI lines forwarded</span>
+    </div>
+    <p class="w-full text-[10px] text-slate-500">Connect the RX Hub to this computer by USB. Use Chrome or Edge over HTTPS. Keep this page open while collecting data.</p>
+  </div>
+</div>
+
+<!-- FALL BANNER -->
+<div id="fallBanner" class="hidden bg-rose-950/95 border-b border-rose-500 px-4 py-3">
+  <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <span class="w-9 h-9 rounded-full bg-rose-500 text-white font-bold flex items-center justify-center animate-bounce">!</span>
+      <div><p class="text-sm font-bold text-rose-100">Possible fall event</p>
+      <p id="fallDetail" class="text-xs text-rose-300"></p></div>
+    </div>
+    <button id="btnDismiss" class="btn px-4 py-1.5 rounded-lg text-xs font-bold bg-rose-500 hover:bg-rose-400 text-slate-950">Acknowledge</button>
+  </div>
+</div>
+
+<main class="flex-1 max-w-7xl w-full mx-auto px-4 py-4 space-y-4">
+
+  <!-- ============ TAB 1 ============ -->
+  <section id="viewOcc" class="space-y-4 fade-in">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+
+      <!-- Room status -->
+      <div class="card rounded-2xl p-4 flex flex-col gap-4">
+        <div class="flex items-center gap-4">
+          <div class="orb"><span id="orbTxt" class="text-4xl font-extrabold text-slate-950 mono">×</span></div>
+          <div class="flex-1 min-w-0">
+            <p class="text-[11px] uppercase tracking-widest text-slate-400">Room status</p>
+            <div id="lblState" class="text-xl sm:text-2xl font-extrabold tracking-tight" style="color:var(--state)">○ No signal</div>
+            <p id="kpiCount" class="text-xs font-bold text-cyan-300 mono mt-0.5">Estimated people (experimental): 0</p>
+          </div>
+        </div>
+        <div>
+          <div class="flex justify-between text-[11px] text-slate-400"><span>Motion intensity</span><span id="motTxt" class="mono">0.00× threshold</span></div>
+          <div class="h-2 bg-slate-800 rounded-full overflow-hidden"><div id="motBar" class="h-full bg-cyan-400 transition-all" style="width:0"></div></div>
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="bg-slate-900/70 border border-slate-800 rounded-xl px-2 py-2"><p class="text-[10px] text-cyan-300 flex items-center justify-center gap-1"><span id="dotN0" class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>RX0 Hub</p><p id="statN0" class="mono text-[10px] mt-1 break-words">–</p></div>
+          <div class="bg-slate-900/70 border border-slate-800 rounded-xl px-2 py-2"><p class="text-[10px] text-violet-300 flex items-center justify-center gap-1"><span id="dotN1" class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>RX1</p><p id="statN1" class="mono text-[10px] mt-1 break-words">–</p></div>
+          <div class="bg-slate-900/70 border border-slate-800 rounded-xl px-2 py-2"><p class="text-[10px] text-amber-300 flex items-center justify-center gap-1"><span id="dotN2" class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>RX2</p><p id="statN2" class="mono text-[10px] mt-1 break-words">–</p></div>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2">
+          <span id="fallBadge" class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-emerald-500/20 text-emerald-300">No fall event detected</span>
+          <div class="text-right">
+            <p id="kpiBreath" class="text-xs font-bold text-violet-300 mono">breathing: collecting data…</p>
+            <p id="kpiSlope" class="text-[11px] text-slate-400 mono">Short-term activity: 0.0× (trigger 4.0×)</p>
+          </div>
+        </div>
+        <div class="mt-auto">
+          <div id="lblInfo" class="text-[11px] text-slate-300 mono">0 pkt/s | RSSI 0 dBm | packets 0 | rejected 0</div>
+          <p class="text-[11px] text-slate-500 mt-1">Presence is motion-based. A very still person may not register.</p>
+        </div>
+      </div>
+
+      <!-- Link activity -->
+      <div class="card rounded-2xl p-4 flex flex-col gap-3">
+        <div><h3 class="text-sm font-bold text-white">Link activity</h3><p class="text-[11px] text-slate-400">Motion seen on each TX→RX link. This is not a location.</p></div>
+        <div class="flex-1 min-h-[220px] bg-[#050810] rounded-xl border border-slate-800 overflow-hidden"><canvas id="radar" class="w-full h-full block"></canvas></div>
+        <div class="bg-slate-900/80 rounded-xl p-3 border border-slate-800 space-y-2 text-xs">
+          <div class="flex justify-between"><span class="font-semibold">Presence &amp; count tuning</span><span id="calibTxt" class="mono text-amber-400">Thr 2.00</span></div>
+          <div><div class="flex justify-between text-slate-400"><label for="sThr">Manual threshold, all nodes (σ)</label><span id="vThr" class="mono text-cyan-300">2.00</span></div>
+          <input id="sThr" type="range" min="0.3" max="8" step="0.1" value="2" class="admin-only w-full"/></div>
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <label class="flex items-center gap-1.5 text-slate-300 cursor-pointer"><input id="chkCount" type="checkbox" class="accent-cyan-400" checked/>Show estimated count</label>
+            <div class="flex items-center gap-2">
+              <span id="walkTxt" class="mono text-[11px] text-slate-400">Ref 2.50× (default)</span>
+              <button id="btnWalk" class="admin-only btn px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-cyan-300 text-[11px] font-semibold">Calibrate 1-person walk (10 s)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card rounded-2xl p-4">
+      <h3 class="text-xs font-bold uppercase tracking-wider text-cyan-300 mb-2">Motion vs. threshold · last 30 s (1.0 = node threshold)</h3>
+      <div class="h-48"><canvas id="motionChart"></canvas></div>
+    </div>
+
+    <div class="card rounded-2xl p-4">
+      <h3 id="specTitle" class="text-xs font-bold text-violet-300 mono mb-2">Breathing rhythm (experimental): collecting data…</h3>
+      <div class="h-48"><canvas id="specChart"></canvas></div>
+    </div>
+
+    <div class="card rounded-2xl p-4 space-y-2">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 id="heatTitle" class="text-sm font-bold text-white">Signal amplitude spectrogram</h2>
+          <p class="text-xs text-slate-400">300 packets × 52 subcarriers · scroll to zoom, drag to pan</p>
+        </div>
+        <div class="flex items-center gap-2 text-xs">
+          <select id="rxView" class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1">
+            <option value="0">RX0 · Hub</option><option value="1">RX1</option>
+            <option value="2">RX2</option><option value="fused">Fused (approx., not time-aligned)</option>
+          </select>
+          <span id="levels" class="mono text-[11px] text-amber-300 bg-slate-900 px-2 py-1 rounded-lg border border-slate-700">[0.0, 50.0]</span>
+        </div>
+      </div>
+      <div class="flex gap-2 h-72">
+        <div class="relative flex-1 bg-[#050810] rounded-xl border border-slate-800 overflow-hidden">
+          <canvas id="spec" class="w-full h-full block cursor-crosshair"></canvas>
+          <div id="vline" class="hidden absolute top-0 bottom-0 border-l border-dashed border-white/70 pointer-events-none"></div>
+          <div id="hline" class="hidden absolute left-0 right-0 border-t border-dashed border-white/70 pointer-events-none"></div>
+        </div>
+        <div class="w-14 bg-[#050810] rounded-xl border border-slate-800 p-1.5 flex flex-col items-center justify-between text-[10px] mono">
+          <span id="cbMax">50.0</span>
+          <canvas id="cbar" width="18" height="170" class="w-4 flex-1 my-1 rounded-sm"></canvas>
+          <span id="cbMin">0.0</span>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div id="hover" class="text-slate-400 mono">Hover over the heatmap to inspect values</div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-slate-400">Hub commands:</span>
+          <button data-cmd="STATUS" class="admin-only cmd btn px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300 mono text-[11px]">STATUS</button>
+          <button data-cmd="MAC_FILTER:1" class="admin-only cmd btn px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-emerald-300 mono text-[11px]">FILTER:1</button>
+          <button data-cmd="MAC_FILTER:0" class="admin-only cmd btn px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-amber-300 mono text-[11px]">FILTER:0</button>
+          <button data-cmd="RESET_STATS" class="admin-only cmd btn px-2 py-0.5 rounded bg-slate-800 border border-slate-700 mono text-[11px]">RESET</button>
+          <span id="ack" class="text-[11px] text-slate-500 mono">Idle</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TAB 2 ============ -->
+  <section id="viewFall" class="hidden space-y-4">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div class="lg:col-span-5 card rounded-2xl p-4 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+          <div><h2 class="text-sm font-bold text-white">Possible-fall detection</h2><p class="text-xs text-slate-400">Experimental. Not validated against everyday movements.</p></div>
+          <button id="btnFallReset" class="admin-only btn px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/40">Reset</button>
+        </div>
+        <div class="space-y-2.5 text-xs">
+          <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800"><div class="flex justify-between mb-1"><span class="font-semibold">1 · Sudden activity burst</span><span id="f1v" class="mono text-rose-400">0.0× / 4.0×</span></div>
+            <div class="h-2 bg-slate-800 rounded-full overflow-hidden"><div id="f1b" class="h-full bg-rose-500 transition-all" style="width:0"></div></div></div>
+          <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800"><div class="flex justify-between mb-1"><span class="font-semibold">2 · Node agreement</span><span id="f2v" class="mono text-cyan-300">0 / 1</span></div>
+            <div class="h-2 bg-slate-800 rounded-full overflow-hidden"><div id="f2b" class="h-full bg-cyan-400 transition-all" style="width:0"></div></div></div>
+          <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800"><div class="flex justify-between mb-1"><span class="font-semibold">3 · Sustained stillness afterwards</span><span id="f3v" class="mono text-emerald-300">Standby</span></div>
+            <div class="h-2 bg-slate-800 rounded-full overflow-hidden"><div id="f3b" class="h-full bg-emerald-400 transition-all" style="width:0"></div></div></div>
+        </div>
+        <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800 space-y-2 text-xs">
+          <div><div class="flex justify-between text-slate-400"><label for="sSpike">Burst trigger (× node threshold)</label><span id="vSpike" class="mono text-rose-400">4.0</span></div>
+            <input id="sSpike" type="range" min="2" max="12" step="0.5" value="4" class="admin-only w-full"/></div>
+          <div><div class="flex justify-between text-slate-400"><label for="sAgree">Min agreeing nodes (limited to live nodes)</label><span id="vAgree" class="mono text-cyan-300">1</span></div>
+            <input id="sAgree" type="range" min="1" max="3" step="1" value="1" class="admin-only w-full"/></div>
+          <label class="flex items-center gap-1.5 text-slate-300 cursor-pointer"><input id="chkAutoEvt" type="checkbox" class="admin-only accent-cyan-400" checked/>Auto-save the last 10 s when an alert fires</label>
+          <p class="text-[11px] text-slate-500">After an alert there is a 20 s cooldown. Test against sitting down quickly, bending and dropping objects before trusting it.</p>
+        </div>
+        <div>
+          <div class="flex justify-between text-xs mb-1"><span class="font-semibold">Detection log</span><button id="btnClearLog" class="text-slate-400 hover:text-white">Clear</button></div>
+          <div id="log" class="h-32 overflow-y-auto bg-[#050810] rounded-xl border border-slate-800 p-2 text-xs mono space-y-1 text-slate-400"><div>[System] Ready.</div></div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-7 card rounded-2xl p-4 flex flex-col space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+          <div><h2 class="text-sm font-bold text-white">Dataset collector</h2><p class="text-xs text-slate-400">Labeled raw windows saved on the server. Train offline.</p></div>
+          <span id="dsBadge" class="px-2.5 py-1 rounded-full text-xs font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 mono">0 windows</span>
+        </div>
+        <p id="dsLock" class="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">Operator login required to record or view datasets.</p>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div class="col-span-2 sm:col-span-1"><label for="selLabel" class="block text-slate-400 mb-1">Activity label</label>
+            <select id="selLabel" class="admin-only w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 font-semibold">
+              <option value="fall_forward">🚨 fall_forward</option><option value="fall_backward">🚨 fall_backward</option>
+              <option value="fall_sideways">🚨 fall_sideways</option><option value="sit_down_fast">🪑 sit_down_fast</option>
+              <option value="lie_down_controlled">🛏 lie_down_controlled</option><option value="bending_pickup">🙇 bending_pickup</option>
+              <option value="object_drop">📦 object_drop</option><option value="walking_normal">🚶 walking_normal</option>
+              <option value="walking_two_people">🚶‍♂️🚶 walking_two_people</option><option value="walking_three_people">👥 walking_three_people</option>
+              <option value="standing_still">🧍 standing_still</option><option value="empty_room">⬜ empty_room</option></select></div>
+          <div><label for="inSubj" class="block text-slate-400 mb-1">Subject ID</label>
+            <input id="inSubj" value="subj_01" maxlength="40" class="admin-only w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 mono"/></div>
+          <div><label for="inRoom" class="block text-slate-400 mb-1">Room ID</label>
+            <input id="inRoom" value="roomA" maxlength="40" class="admin-only w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 mono"/></div>
+          <div><label for="selSec" class="block text-slate-400 mb-1">Window</label>
+            <select id="selSec" class="admin-only w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2">
+              <option value="4">4 s</option><option value="6" selected>6 s</option><option value="10">10 s</option><option value="0">Manual</option></select></div>
+        </div>
+        <div class="bg-slate-900/80 rounded-xl p-3 border border-slate-800 space-y-2.5">
+          <div class="flex items-center gap-2">
+            <button id="btnWin" class="admin-only btn px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950">Start recording</button>
+            <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer"><input id="chkCountdown" type="checkbox" class="admin-only accent-cyan-400" checked/>2 s countdown</label>
+          </div>
+          <div class="flex justify-between text-xs"><span id="recStatus" class="text-slate-400">Ready</span><span id="recCount" class="mono text-cyan-300">0 pkts</span></div>
+          <div class="h-2 bg-slate-800 rounded-full overflow-hidden"><div id="recBar" class="h-full bg-cyan-400 transition-all" style="width:0"></div></div>
+        </div>
+        <p id="dsSummary" class="text-[11px] text-slate-400 mono">No windows yet.</p>
+        <div class="flex-1 overflow-auto bg-[#050810] rounded-xl border border-slate-800 max-h-56">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900 text-slate-400 sticky top-0"><tr>
+              <th class="py-2 px-2.5">#</th><th class="px-2.5">Label</th><th class="px-2.5">Subject</th><th class="px-2.5">Room</th><th class="px-2.5">Pkts RX0/1/2</th><th class="px-2.5">Duration</th><th class="px-2.5 text-right"></th></tr></thead>
+            <tbody id="dsBody" class="divide-y divide-slate-800/70 mono text-[11px]"></tbody>
+          </table>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex flex-wrap gap-2">
+            <button id="btnJson" class="admin-only btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-400 text-slate-950">⬇ Export JSON (with raw)</button>
+            <button id="btnRaw" class="admin-only btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-700 text-white">⬇ Raw CSV</button>
+            <button id="btnFeat" class="admin-only btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-500 text-white">⬇ Feature CSV</button>
+          </div>
+          <button id="btnClear" class="admin-only btn px-2.5 py-1.5 rounded-lg text-xs bg-slate-800 text-slate-400 border border-slate-700 hover:text-rose-300">Clear all</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* All results come from the server. This page only displays them. */
+const SC = 52, HIST = 300, MHIST = 300;
+const $ = id => document.getElementById(id);
+const NODE_COL = ['#22d3ee', '#c084fc', '#fbbf24'];
+const S = {
+  ws: null, up: false, backoff: 1, paused: false, admin: false, adminKey: '',
+  serialPort: null, serialReader: null, serialTask: null, serialQueue: [], serialFlushTimer: null,
+  serialLines: 0, serialBaud: 115200, serialCloudActive: false,
+  view: '0', delta: false, st: null, heat: null, hl: 0, hh: 50, heatDelta: false,
+  mh: [Array(MHIST).fill(0), Array(MHIST).fill(0), Array(MHIST).fill(0)],
+  vx0: -HIST, vx1: 0, vy0: 0, vy1: SC, drag: false, dx: 0, dy: 0,
+  lut: null, lutName: '', audio: false, actx: null, prevFall: 'idle', bannerOff: false, showCount: true, ds: []
+};
+const PRES = {
+  nosignal: ['○ No signal', '#f87171', '×'], calibrating: ['◌ Calibrating…', '#fbbf24', '…'],
+  none: ['○ Presence not detected', '#34d399', '–'], uncertain: ['◐ Uncertain', '#fbbf24', '?'],
+  detected: ['● Presence detected (motion)', '#f59e0b', '●']
+};
+
+/* ---------- helpers ---------- */
+function toast(msg, type = 'info') {
+  const c = { info: 'border-cyan-500/50 text-cyan-200', success: 'border-emerald-500/60 text-emerald-200', warn: 'border-amber-500/60 text-amber-200', danger: 'border-rose-500/80 text-rose-100' };
+  const el = document.createElement('div');
+  el.className = `toast px-4 py-2.5 rounded-xl border bg-slate-900/95 text-xs font-semibold shadow-xl ${c[type] || c.info}`;
+  el.textContent = msg; $('toasts').appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3500);
+}
+function siren() {
+  if (!S.audio) return;
+  try {
+    S.actx = S.actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (S.actx.state === 'suspended') S.actx.resume();
+    const o = S.actx.createOscillator(), g = S.actx.createGain(), t = S.actx.currentTime;
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(880, t); o.frequency.exponentialRampToValueAtTime(440, t + .35);
+    g.gain.setValueAtTime(.15, t); g.gain.exponentialRampToValueAtTime(.001, t + .38);
+    o.connect(g); g.connect(S.actx.destination); o.start(t); o.stop(t + .38);
+  } catch (e) {}
+}
+function addLog(msg, alert) {
+  const row = document.createElement('div'); row.className = alert ? 'text-rose-400 font-bold' : 'text-cyan-300';
+  row.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  const log = $('log'); log.prepend(row); while (log.children.length > 100) log.lastChild.remove();
+}
+function send(o) { if (S.ws && S.ws.readyState === 1) S.ws.send(JSON.stringify(o)); }
+function sendView() { send({ type: 'view', view: S.view, delta: S.delta }); }
+function badge() {
+  let txt, dot, tc;
+  if (!S.up) { txt = 'Server offline'; dot = 'bg-rose-500'; tc = 'text-rose-300'; }
+  else if (!S.st) { txt = 'Connecting…'; dot = 'bg-amber-400 animate-pulse'; tc = 'text-amber-300'; }
+  else if (!S.st.gateway.connected) { txt = 'Hardware gateway offline'; dot = 'bg-amber-400'; tc = 'text-amber-300'; }
+  else if (S.st.gateway.age != null && S.st.gateway.age > 3) { txt = 'Hardware stale (no packets)'; dot = 'bg-amber-400'; tc = 'text-amber-300'; }
+  else { txt = 'Live'; dot = 'bg-emerald-400 animate-pulse'; tc = 'text-emerald-300'; }
+  $('dot').className = 'w-2 h-2 rounded-full ' + dot;
+  $('connBadge').textContent = txt; $('connBadge').className = 'text-[11px] mono ' + tc;
+}
+function setAdminUI(on) {
+  S.admin = on;
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.disabled = !on; el.classList.toggle('locked', !on);
+    el.title = on ? '' : 'Operator login required';
+  });
+  $('dsLock').classList.toggle('hidden', on);
+  $('btnAdmin').textContent = on ? 'Operator ✓ (log out)' : 'Operator login';
+  if (!on) { S.ds = []; S.serialCloudActive = false; renderDs(); }
+  updateSerialUI();
+}
+
+/* ---------- browser Web Serial -> authenticated cloud ingestion ---------- */
+function updateSerialUI() {
+  const connected = !!S.serialPort;
+  $('btnSerial').textContent = connected ? 'Disconnect RX Hub' : 'Connect RX Hub';
+  $('serialStatus').textContent = connected
+    ? `USB connected · ${S.serialBaud} baud · ${S.up && S.admin ? 'cloud forwarding enabled' : 'waiting for server/operator authentication'}`
+    : (S.admin ? 'Disconnected · select the RX Hub USB serial port' : 'Disconnected · operator login required');
+  $('serialStats').textContent = `${S.serialLines.toLocaleString()} CSI lines received`;
+}
+function flushSerialQueue() {
+  if (S.serialFlushTimer) { clearTimeout(S.serialFlushTimer); S.serialFlushTimer = null; }
+  if (!S.serialQueue.length) return;
+  if (!S.up || !S.admin || !S.serialCloudActive || !S.ws || S.ws.readyState !== WebSocket.OPEN) {
+    S.serialQueue.length = 0;
+    return;
+  }
+  const lines = S.serialQueue.splice(0, 8);
+  send({ type: 'ingest', lines });
+  if (S.serialQueue.length) S.serialFlushTimer = setTimeout(flushSerialQueue, 10);
+}
+function queueSerialLine(line) {
+  if (!line || line.length > 1024) return;
+  if (!line.startsWith('CSI_DATA,') && !line.startsWith('ACK,') && !line.startsWith('DBG,')) return;
+  if (line.startsWith('CSI_DATA,')) S.serialLines++;
+  if (!S.up || !S.admin) { updateSerialUI(); return; }
+  if (S.serialQueue.length >= 256) S.serialQueue.splice(0, 32);
+  S.serialQueue.push(line);
+  if (S.serialQueue.length >= 8) flushSerialQueue();
+  else if (!S.serialFlushTimer) S.serialFlushTimer = setTimeout(flushSerialQueue, 15);
+  if (S.serialLines % 25 === 0) updateSerialUI();
+}
+async function readSerialLoop(port) {
+  const decoder = new TextDecoder();
+  let buffer = '';
+  const reader = port.readable.getReader();
+  S.serialReader = reader;
+  try {
+    while (S.serialPort === port) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      if (buffer.length > 8192 && !buffer.includes('\n')) buffer = '';
+      const parts = buffer.split(/\r?\n/);
+      buffer = parts.pop() || '';
+      for (const raw of parts) queueSerialLine(raw.trim());
+    }
+  } catch (e) {
+    if (S.serialPort === port) toast('RX Hub serial read failed: ' + e.message, 'warn');
+  } finally {
+    try { reader.releaseLock(); } catch (e) {}
+    if (S.serialReader === reader) S.serialReader = null;
+    if (S.serialPort === port) {
+      S.serialPort = null; S.serialCloudActive = false;
+      S.serialQueue.length = 0;
+      send({ type: 'ingest_stop' });
+      try { await port.close(); } catch (e) {}
+      updateSerialUI();
+      toast('RX Hub disconnected', 'warn');
+    }
+  }
+}
+async function toggleSerial() {
+  if (S.serialPort) { await disconnectSerial(); return; }
+  if (!S.admin) { toast('Operator login required', 'warn'); return; }
+  if (!S.up || !S.ws || S.ws.readyState !== WebSocket.OPEN) { toast('Cloud connection is not ready', 'warn'); return; }
+  if (!('serial' in navigator)) { toast('Web Serial requires Chrome or Edge over HTTPS', 'warn'); return; }
+  try {
+    const port = await navigator.serial.requestPort();
+    const baud = parseInt($('baudSelect').value, 10) || 115200;
+    await port.open({ baudRate: baud });
+    S.serialPort = port; S.serialBaud = baud; S.serialLines = 0; S.serialCloudActive = false; S.serialQueue.length = 0;
+    send({ type: 'ingest_start' });
+    updateSerialUI();
+    S.serialTask = readSerialLoop(port);
+    toast(`RX Hub connected at ${baud} baud`, 'success');
+  } catch (e) {
+    toast('Could not open RX Hub: ' + e.message, 'warn');
+    updateSerialUI();
+  }
+}
+async function disconnectSerial() {
+  const port = S.serialPort;
+  if (!port) return;
+  send({ type: 'ingest_stop' });
+  S.serialPort = null; S.serialCloudActive = false; S.serialQueue.length = 0;
+  if (S.serialFlushTimer) { clearTimeout(S.serialFlushTimer); S.serialFlushTimer = null; }
+  try { if (S.serialReader) await S.serialReader.cancel(); } catch (e) {}
+  try { if (S.serialTask) await S.serialTask; } catch (e) {}
+  try { await port.close(); } catch (e) {}
+  S.serialReader = null; S.serialTask = null;
+  updateSerialUI();
+  toast('RX Hub USB disconnected', 'info');
+}
+async function writeSerialCommand(cmd) {
+  const allowed = ['STATUS', 'MAC_FILTER:1', 'MAC_FILTER:0', 'RESET_STATS'];
+  if (!allowed.includes(cmd)) return;
+  const port = S.serialPort;
+  if (!port || !port.writable) { toast('The RX Hub USB connection is not open in this browser', 'warn'); return; }
+  let writer;
+  try {
+    writer = port.writable.getWriter();
+    await writer.write(new TextEncoder().encode(cmd + '\n'));
+    toast(`Sent ${cmd} to RX Hub`, 'success');
+  } catch (e) { toast('Could not send hardware command: ' + e.message, 'warn'); }
+  finally { if (writer) try { writer.releaseLock(); } catch (e) {} }
+}
+
+/* ---------- connection ---------- */
+function connect() {
+  const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/live');
+  S.ws = ws;
+  ws.onopen = () => { S.up = true; S.backoff = 1; sendView(); if (S.adminKey) send({ type: 'auth', key: S.adminKey }); badge(); };
+  ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (x) { return; } onMsg(m); };
+  ws.onclose = () => { S.up = false; S.st = null; S.serialCloudActive = false; S.serialQueue.length = 0; if (S.admin) setAdminUI(false); badge(); setTimeout(connect, S.backoff * 1000); S.backoff = Math.min(15, S.backoff * 2); };
+  ws.onerror = () => {};
+}
+function onMsg(m) {
+  switch (m.type) {
+    case 'init':
+      m.motion_hist.forEach((h, i) => { S.mh[i].length = 0; S.mh[i].push(...h); });
+      applyBreath(m.breath); $('log').replaceChildren(); (m.logs || []).forEach(l => addLog(l.msg, l.alert));
+      break;
+    case 'state': if (!S.paused) render(m); else { S.st = m; } break;
+    case 'heat':
+      if (S.paused) break;
+      { const bin = atob(m.data), a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+        S.heat = a; S.hl = m.lo; S.hh = m.hi; S.heatDelta = m.delta;
+        $('heatTitle').textContent = m.delta ? 'Change vs baseline |Δ amplitude|' : 'Signal amplitude spectrogram'; drawSpec(); }
+      break;
+    case 'event':
+      if (m.kind === 'toast') toast(m.msg, m.level);
+      else if (m.kind === 'log') addLog(m.msg, m.alert);
+      break;
+    case 'auth':
+      if (m.ok) { setAdminUI(true); toast('Operator login successful', 'success'); if (S.serialPort) { S.serialCloudActive = false; send({ type: 'ingest_start' }); } }
+      else { S.adminKey = ''; toast('Wrong admin key', 'warn'); }
+      break;
+    case 'dataset': S.ds = m.items; renderDs(); break;
+    case 'ingest_status': S.serialCloudActive = !!m.ok; if (!m.ok) { S.serialQueue.length = 0; toast(m.message || 'Browser ingestion could not start', 'warn'); } else { toast(m.message || 'Browser ingestion active', 'success'); flushSerialQueue(); } updateSerialUI(); break;
+    case 'hardware_cmd': writeSerialCommand(m.cmd); break;
+  }
+}
+
+/* ---------- render ---------- */
+function applyBreath(b) {
+  if (!b) return;
+  $('specTitle').textContent = b.title; $('kpiBreath').textContent = b.kpi;
+  if (b.spec) { specChart.data.datasets[0].data = b.spec; specChart.update('none'); }
+}
+function render(st) {
+  S.st = st; badge();
+  const pr = PRES[st.pres] || PRES.nosignal;
+  $('lblState').textContent = st.pres === 'calibrating' ? `◌ Calibrating… keep the room still (${Math.max(0, st.cal_left).toFixed(0)}s)` : pr[0];
+  document.documentElement.style.setProperty('--state', pr[1]);
+  $('orbTxt').textContent = S.showCount ? st.est : pr[2];
+  $('kpiCount').textContent = `Estimated people (experimental): ${st.est}`;
+  $('motTxt').textContent = `${st.ratio.toFixed(2)}× threshold`; $('motBar').style.width = Math.min(100, st.ratio / 3 * 100) + '%';
+  const i = st.info;
+  $('lblInfo').textContent = `${i.rate.toFixed(0)} pkt/s total | RSSI ${i.rssi} dBm | packets ${i.packets.toLocaleString()} | rejected ${i.rejected}`;
+  st.nodes.forEach(n => {
+    $('dotN' + n.id).className = 'w-1.5 h-1.5 rounded-full ' + (n.alive ? 'bg-emerald-400' : n.count ? 'bg-amber-400' : 'bg-slate-600');
+    $('statN' + n.id).textContent = n.count ? `${n.rate.toFixed(0)} pkt/s · σ${n.mot.toFixed(2)} · drop ${n.drops}${n.ago > 2 ? ` · ${n.ago.toFixed(0)}s ago` : ''}` : 'no data';
+  });
+  $('walkTxt').textContent = st.walk_left > 0 ? `Walk alone… ${Math.ceil(st.walk_left)}s` : `Ref ${st.walk_ref.toFixed(2)}×`;
+  $('calibTxt').textContent = 'Thr ' + st.thr.map(t => t.toFixed(2)).join(' / ');
+  if (document.activeElement !== $('sThr')) { $('sThr').value = st.thr[0]; $('vThr').textContent = st.thr[0].toFixed(2); }
+  if (st.calibrated) { $('calChip').textContent = st.cal_id || 'calibrated'; $('calChip').className = 'text-[10px] mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'; }
+  st.mot.forEach((v, k) => { S.mh[k].shift(); S.mh[k].push(v); });
+  motionChart.update('none');
+  if (st.breath) applyBreath(st.breath);
+  renderFall(st.fall, st.settings);
+  renderRec(st.rec);
+  if (st.ack) $('ack').textContent = st.ack;
+  drawRadar(st.nodes);
+}
+function renderFall(f, s) {
+  $('kpiSlope').textContent = `Short-term activity: ${f.max_fr.toFixed(1)}× (trigger ${s.spike.toFixed(1)}×)`;
+  $('f1v').textContent = `${f.max_fr.toFixed(1)}× / ${s.spike.toFixed(1)}×`; $('f1b').style.width = Math.min(100, f.max_fr / s.spike * 100) + '%';
+  $('f2v').textContent = `${f.agree} / ${f.needed}`; $('f2b').style.width = Math.min(100, f.agree / Math.max(1, f.needed) * 100) + '%';
+  $('f3v').textContent = f.s3; $('f3b').style.width = f.p3 + '%';
+  if (document.activeElement !== $('sSpike')) { $('sSpike').value = s.spike; $('vSpike').textContent = s.spike.toFixed(1); }
+  if (document.activeElement !== $('sAgree')) { $('sAgree').value = s.min_agree; $('vAgree').textContent = s.min_agree; }
+  $('chkAutoEvt').checked = s.auto_event;
+  if (f.state === 'alert') {
+    if (S.prevFall !== 'alert') { S.bannerOff = false; siren(); }
+    $('fallBadge').textContent = 'POSSIBLE FALL'; $('fallBadge').className = 'px-2.5 py-1 text-[11px] font-bold rounded-full bg-rose-500 text-white animate-pulse';
+    $('fallDetail').textContent = f.detail; $('fallBanner').classList.toggle('hidden', S.bannerOff);
+  } else {
+    $('fallBadge').textContent = 'No fall event detected'; $('fallBadge').className = 'px-2.5 py-1 text-[11px] font-bold rounded-full bg-emerald-500/20 text-emerald-300';
+    $('fallBanner').classList.add('hidden');
+  }
+  S.prevFall = f.state;
+}
+function renderRec(r) {
+  if (!r) { $('btnWin').textContent = 'Start recording'; $('btnWin').className = ($('btnWin').className).replace('bg-rose-500 hover:bg-rose-400 text-white', 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'); if (!$('recStatus').dataset.keep) { $('recBar').style.width = '0'; } return; }
+  $('btnWin').textContent = 'Stop & save';
+  $('btnWin').className = $('btnWin').className.replace('bg-emerald-500 hover:bg-emerald-400 text-slate-950', 'bg-rose-500 hover:bg-rose-400 text-white');
+  $('recCount').textContent = `${r.count} pkts`;
+  if (r.phase === 'countdown') { $('recStatus').textContent = `Get ready… ${r.countdown.toFixed(1)}s`; $('recBar').style.width = '0'; }
+  else if (r.seconds > 0) { $('recStatus').textContent = `Recording ${r.elapsed.toFixed(1)} / ${r.seconds}s`; $('recBar').style.width = Math.min(100, r.elapsed / r.seconds * 100) + '%'; }
+  else { $('recStatus').textContent = `Manual recording ${r.elapsed.toFixed(1)}s. Press Stop.`; $('recBar').style.width = '100%'; }
+}
+function renderDs() {
+  $('dsBadge').textContent = `${S.ds.length} windows`;
+  const by = {}; S.ds.forEach(t => by[t.label] = (by[t.label] || 0) + 1);
+  $('dsSummary').textContent = S.ds.length ? Object.entries(by).map(([k, v]) => `${k} ${v}`).join(' · ') : 'No windows yet.';
+  const tb = $('dsBody'); tb.replaceChildren();
+  if (!S.ds.length) {
+    const tr = document.createElement('tr'), td = document.createElement('td');
+    td.colSpan = 7; td.className = 'py-6 text-center text-slate-500 font-sans'; td.textContent = S.admin ? 'No windows yet. Start a recording.' : 'Log in as operator to view datasets.';
+    tr.appendChild(td); tb.appendChild(tr); return;
+  }
+  S.ds.forEach((t, i) => {
+    const tr = document.createElement('tr'); tr.className = 'hover:bg-slate-900/60';
+    const cell = (txt, cls) => { const td = document.createElement('td'); td.className = 'px-2.5 py-1.5 ' + (cls || ''); td.textContent = txt; tr.appendChild(td); return td; };
+    cell(i + 1, 'text-slate-400');
+    const tl = cell(t.label, 'font-semibold text-cyan-300');
+    if (t.auto) { const b = document.createElement('span'); b.className = 'ml-1.5 px-1 rounded text-[9px] bg-rose-500/20 text-rose-300'; b.textContent = 'AUTO'; tl.appendChild(b); }
+    cell(t.subject); cell(t.room || '–');
+    const miss = (t.expected || []).filter(r => !t.counts[r]);
+    cell(t.counts.join('/') + (miss.length ? ' ⚠' : ''), miss.length ? 'text-amber-300' : '');
+    cell(t.duration ? t.duration + ' s' : '–');
+    const act = cell('', 'text-right'), btn = document.createElement('button');
+    btn.className = 'text-rose-400 px-2 py-0.5 rounded bg-rose-950/50'; btn.textContent = 'Delete';
+    btn.onclick = () => send({ type: 'ds_delete', id: t.id });
+    act.appendChild(btn); tb.appendChild(tr);
+  });
+}
+
+/* ---------- colour map & spectrogram ---------- */
+function cmapRaw(t, name) {
+  const v = Math.max(0, Math.min(1, t));
+  switch (name) {
+    case 'viridis': return [68 + 185 * v ** 1.4, 1 + 225 * v, 84 + 140 * (1 - Math.abs(v - .5) * 2)];
+    case 'plasma': return [13 + 240 * v ** .8, 8 + 210 * v ** 1.6, 135 + 100 * Math.sin(v * Math.PI)];
+    case 'magma': return [252 * v ** .85, 253 * (Math.max(0, v - .2) / .8) ** 1.6, 191 * Math.sin(v * Math.PI * .85) + 60 * v ** 3];
+    case 'cividis': return [253 * v, 32 + 205 * v, 76 + 70 * (1 - v)];
+    default: return [Math.min(255, 255 * v ** .75 * 1.15), Math.min(255, 255 * (Math.max(0, v - .25) / .75) ** 1.4), Math.min(255, 180 * Math.sin(v * Math.PI) + 75 * v ** 3)];
+  }
+}
+function getLut() {
+  const name = $('cmapSelect').value;
+  if (S.lutName !== name) {
+    const l = new Uint8ClampedArray(256 * 3);
+    for (let i = 0; i < 256; i++) { const c = cmapRaw(i / 255, name); l[i * 3] = c[0]; l[i * 3 + 1] = c[1]; l[i * 3 + 2] = c[2]; }
+    S.lut = l; S.lutName = name;
+  }
+  return S.lut;
+}
+function drawBar() {
+  const c = $('cbar'), x = c.getContext('2d'), W = c.width, H = c.height, img = x.createImageData(W, H), lut = getLut();
+  for (let y = 0; y < H; y++) { const i = Math.round((1 - y / (H - 1)) * 255) * 3; for (let k = 0; k < W; k++) { const p = (y * W + k) * 4; img.data[p] = lut[i]; img.data[p + 1] = lut[i + 1]; img.data[p + 2] = lut[i + 2]; img.data[p + 3] = 255; } }
+  x.putImageData(img, 0, 0);
+  $('cbMin').textContent = S.hl.toFixed(1); $('cbMax').textContent = S.hh.toFixed(1);
+  $('levels').textContent = `[${S.hl.toFixed(1)}, ${S.hh.toFixed(1)}]`;
+}
+function drawSpec() {
+  const c = $('spec'), r = c.getBoundingClientRect(); if (!r.width || !r.height) return;
+  if (c.width !== Math.floor(r.width) || c.height !== Math.floor(r.height)) { c.width = Math.floor(r.width); c.height = Math.floor(r.height); }
+  const x = c.getContext('2d'), W = c.width, H = c.height;
+  if (!S.heat) { x.fillStyle = '#050810'; x.fillRect(0, 0, W, H); drawBar(); return; }
+  const img = x.createImageData(W, H), d = img.data, lut = getLut(), xs = S.vx1 - S.vx0, ys = S.vy1 - S.vy0;
+  for (let px = 0; px < W; px++) {
+    const col = Math.min(HIST - 1, Math.max(0, Math.floor(S.vx0 + (px / W) * xs + HIST))), base = col * SC;
+    for (let py = 0; py < H; py++) {
+      const row = Math.min(SC - 1, Math.max(0, Math.floor(S.vy0 + ((H - 1 - py) / H) * ys)));
+      const i = S.heat[base + row] * 3, p = (py * W + px) * 4;
+      d[p] = lut[i]; d[p + 1] = lut[i + 1]; d[p + 2] = lut[i + 2]; d[p + 3] = 255;
+    }
+  }
+  x.putImageData(img, 0, 0); drawBar();
+}
+
+/* ---------- charts & link activity ---------- */
+let motionChart, specChart;
+function initCharts() {
+  const grid = { color: 'rgba(71,85,105,.3)' }, tick = { color: '#64748b', font: { size: 10 } };
+  const labels = Array.from({ length: MHIST }, (_, i) => (((i - (MHIST - 1)) * 100) / 1000).toFixed(0) + 's');
+  motionChart = new Chart($('motionChart').getContext('2d'), {
+    type: 'line', data: { labels, datasets: [
+      { label: 'RX0', data: S.mh[0], borderColor: NODE_COL[0], backgroundColor: 'rgba(34,211,238,.15)', borderWidth: 2, pointRadius: 0, fill: true, tension: .25 },
+      { label: 'RX1', data: S.mh[1], borderColor: NODE_COL[1], borderWidth: 1.5, pointRadius: 0, tension: .25 },
+      { label: 'RX2', data: S.mh[2], borderColor: NODE_COL[2], borderWidth: 1.5, pointRadius: 0, tension: .25 },
+      { label: 'Threshold', data: Array(MHIST).fill(1), borderColor: '#f43f5e', borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: '#cbd5e1', font: { size: 10 }, boxWidth: 12 } } },
+      scales: { x: { ticks: { ...tick, maxTicksLimit: 10 }, grid }, y: { min: 0, suggestedMax: 3, ticks: tick, grid } } }
+  });
+  const bf = []; for (let f = 4; f <= 40.001; f += 0.5) bf.push(f.toFixed(1));
+  specChart = new Chart($('specChart').getContext('2d'), {
+    type: 'line', data: { labels: bf, datasets: [{ label: 'Rhythm strength', data: Array(bf.length).fill(0), borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,.18)', borderWidth: 2, pointRadius: 0, fill: true, tension: .3 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { labels: { color: '#cbd5e1', font: { size: 10 }, boxWidth: 12 } } },
+      scales: { x: { title: { display: true, text: 'Cycles per minute (8–30 = breathing band)', color: '#94a3b8', font: { size: 10 } }, ticks: { ...tick, maxTicksLimit: 14 }, grid }, y: { min: 0, ticks: tick, grid } } }
+  });
+}
+function drawRadar(nodes) {
+  const c = $('radar'), r = c.getBoundingClientRect(); if (!r.width || !r.height) return;
+  if (c.width !== Math.floor(r.width) || c.height !== Math.floor(r.height)) { c.width = Math.floor(r.width); c.height = Math.floor(r.height); }
+  const x = c.getContext('2d'), W = c.width, H = c.height; x.clearRect(0, 0, W, H);
+  x.strokeStyle = 'rgba(71,85,105,.25)';
+  for (let g = 35; g < W; g += 40) { x.beginPath(); x.moveTo(g, 0); x.lineTo(g, H); x.stroke(); }
+  for (let g = 30; g < H; g += 40) { x.beginPath(); x.moveTo(0, g); x.lineTo(W, g); x.stroke(); }
+  const tx = { x: W * .5, y: 24 }, pos = [{ x: W * .5, y: H - 24 }, { x: 36, y: H * .6 }, { x: W - 36, y: H * .6 }], t = Date.now() / 1000;
+  nodes.forEach((n, i) => {
+    const k = n.alive ? Math.min(1, n.ratio / 3) : 0, p = pos[i];
+    x.save(); x.strokeStyle = n.alive ? NODE_COL[i] : '#475569';
+    x.globalAlpha = .25 + .65 * k; x.lineWidth = 1.5 + 4 * k; x.setLineDash([5, 4]); x.lineDashOffset = -t * (10 + 40 * k);
+    x.beginPath(); x.moveTo(tx.x, tx.y); x.lineTo(p.x, p.y); x.stroke(); x.restore();
+    if (k > 0.05) { const mx = (tx.x + p.x) / 2, my = (tx.y + p.y) / 2, gr = x.createRadialGradient(mx, my, 2, mx, my, 40); gr.addColorStop(0, NODE_COL[i] + Math.round(k * 90).toString(16).padStart(2, '0')); gr.addColorStop(1, NODE_COL[i] + '00'); x.fillStyle = gr; x.beginPath(); x.arc(mx, my, 40, 0, 7); x.fill(); }
+  });
+  x.fillStyle = '#f43f5e'; x.beginPath(); x.arc(tx.x, tx.y, 6.5, 0, 7); x.fill();
+  x.fillStyle = '#f8fafc'; x.font = 'bold 10px Inter'; x.textAlign = 'center'; x.fillText('TX', tx.x, tx.y - 9);
+  nodes.forEach((n, i) => {
+    const p = pos[i]; x.fillStyle = n.alive ? NODE_COL[i] : '#475569'; x.beginPath(); x.arc(p.x, p.y, 6.5, 0, 7); x.fill();
+    x.fillStyle = '#e2e8f0'; x.font = '600 10px Inter'; x.textAlign = p.x < W * .3 ? 'left' : p.x > W * .7 ? 'right' : 'center';
+    x.fillText(`RX${i} ${n.alive ? n.ratio.toFixed(1) + '×' : 'off'}`, p.x, p.y > H * .75 ? p.y + 15 : p.y - 10);
+  });
+}
+
+/* ---------- exports ---------- */
+async function dlApi(path, name) {
+  try {
+    const r = await fetch(path, { headers: { 'X-Admin-Key': S.adminKey } });
+    if (!r.ok) { toast('Export failed (login again?)', 'warn'); return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(await r.blob()); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  } catch (e) { toast('Export failed', 'warn'); }
+}
+
+/* ---------- wiring ---------- */
+function tab(name) {
+  const occ = name === 'occ';
+  $('viewOcc').classList.toggle('hidden', !occ); $('viewFall').classList.toggle('hidden', occ);
+  const on = 'btn tab-on px-4 py-1.5 rounded-lg text-xs font-semibold', off = 'btn px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-300';
+  $('tabOcc').className = occ ? on : off; $('tabFall').className = occ ? off : on;
+}
+window.addEventListener('DOMContentLoaded', () => {
+  initCharts(); drawSpec(); drawRadar([]); badge(); setAdminUI(false); connect();
+  $('tabOcc').onclick = () => tab('occ'); $('tabFall').onclick = () => tab('fall');
+  $('btnSerial').onclick = toggleSerial;
+  $('btnAdmin').onclick = () => {
+    if (S.admin) { disconnectSerial(); S.adminKey = ''; setAdminUI(false); if (S.ws) S.ws.close(); return; }
+    $('adminModal').classList.remove('hidden'); $('adminKey').value = ''; $('adminKey').focus();
+  };
+  const doLogin = () => { const k = $('adminKey').value; if (!k) return; S.adminKey = k; $('adminModal').classList.add('hidden'); send({ type: 'auth', key: k }); };
+  $('adminOk').onclick = doLogin; $('adminKey').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  $('adminCancel').onclick = () => $('adminModal').classList.add('hidden');
+  const pause = () => { S.paused = !S.paused; $('btnPause').textContent = S.paused ? 'Resume' : 'Pause'; };
+  $('btnPause').onclick = pause;
+  window.addEventListener('keydown', e => { if (e.code === 'Space' && !['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].includes(e.target.tagName)) { e.preventDefault(); pause(); } });
+  $('btnReset').onclick = () => { S.vx0 = -HIST; S.vx1 = 0; S.vy0 = 0; S.vy1 = SC; drawSpec(); };
+  $('btnAudio').onclick = e => { S.audio = !S.audio; e.currentTarget.textContent = S.audio ? '🔔 On' : '🔔 Off'; if (S.audio) siren(); };
+  $('cmapSelect').onchange = drawSpec;
+  $('rxView').onchange = e => { S.view = e.target.value; sendView(); };
+  $('chkDelta').onchange = e => { S.delta = e.target.checked; sendView(); };
+  $('chkCount').onchange = e => { S.showCount = e.target.checked; $('kpiCount').classList.toggle('hidden', !S.showCount); };
+  $('btnCalib').onclick = () => send({ type: 'calibrate' });
+  $('btnWalk').onclick = () => send({ type: 'walk_cal' });
+  document.querySelectorAll('.cmd').forEach(b => b.onclick = () => send({ type: 'cmd', cmd: b.dataset.cmd }));
+  $('btnFallReset').onclick = () => send({ type: 'fall_reset' });
+  $('btnDismiss').onclick = () => { S.bannerOff = true; $('fallBanner').classList.add('hidden'); send({ type: 'fall_reset' }); };
+  $('btnClearLog').onclick = () => $('log').replaceChildren();
+  $('sThr').oninput = e => $('vThr').textContent = parseFloat(e.target.value).toFixed(2);
+  $('sThr').onchange = e => send({ type: 'set', threshold: parseFloat(e.target.value) });
+  $('sSpike').oninput = e => $('vSpike').textContent = parseFloat(e.target.value).toFixed(1);
+  $('sSpike').onchange = e => send({ type: 'set', spike: parseFloat(e.target.value) });
+  $('sAgree').oninput = e => $('vAgree').textContent = e.target.value;
+  $('sAgree').onchange = e => send({ type: 'set', min_agree: parseInt(e.target.value, 10) });
+  $('chkAutoEvt').onchange = e => send({ type: 'set', auto_event: e.target.checked });
+  $('btnWin').onclick = () => {
+    if (S.st && S.st.rec) { send({ type: 'rec_stop' }); return; }
+    send({ type: 'rec_start', label: $('selLabel').value, subject: $('inSubj').value, room: $('inRoom').value,
+           seconds: parseInt($('selSec').value, 10), countdown: $('chkCountdown').checked });
+  };
+  $('btnJson').onclick = () => dlApi('/api/dataset/export.json', 'adrishta_dataset.json');
+  $('btnRaw').onclick = () => dlApi('/api/dataset/raw.csv', 'adrishta_raw.csv');
+  $('btnFeat').onclick = () => dlApi('/api/dataset/features.csv', 'adrishta_features.csv');
+  $('btnClear').onclick = () => { if (S.ds.length && confirm(`Delete all ${S.ds.length} windows from the server?`)) send({ type: 'ds_clear' }); };
+
+  const cv = $('spec'), vl = $('vline'), hl = $('hline');
+  cv.addEventListener('mousemove', e => {
+    const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    if (S.drag) {
+      const xs = S.vx1 - S.vx0, ys = S.vy1 - S.vy0, dx = (x - S.dx) / r.width * xs, dy = (y - S.dy) / r.height * ys; S.dx = x; S.dy = y;
+      S.vx0 = Math.max(-HIST, Math.min(-xs, S.vx0 - dx)); S.vx1 = S.vx0 + xs;
+      S.vy0 = Math.max(0, Math.min(SC - ys, S.vy0 + dy)); S.vy1 = S.vy0 + ys; drawSpec();
+    }
+    vl.style.left = x + 'px'; hl.style.top = y + 'px'; vl.classList.remove('hidden'); hl.classList.remove('hidden');
+    if (!S.heat) return;
+    const col = Math.min(HIST - 1, Math.max(0, Math.floor(S.vx0 + x / r.width * (S.vx1 - S.vx0) + HIST)));
+    const row = Math.min(SC - 1, Math.max(0, Math.floor(S.vy0 + ((r.height - 1 - y) / r.height) * (S.vy1 - S.vy0))));
+    const val = S.hl + S.heat[col * SC + row] / 255 * (S.hh - S.hl);
+    $('hover').textContent = `Subcarrier ${row} | ${HIST - 1 - col} packets ago | value ${val.toFixed(2)}`;
+  });
+  cv.addEventListener('mouseleave', () => { S.drag = false; vl.classList.add('hidden'); hl.classList.add('hidden'); });
+  cv.addEventListener('mousedown', e => { const r = cv.getBoundingClientRect(); S.drag = true; S.dx = e.clientX - r.left; S.dy = e.clientY - r.top; });
+  window.addEventListener('mouseup', () => S.drag = false);
+  cv.addEventListener('wheel', e => {
+    e.preventDefault(); const f = e.deltaY < 0 ? .85 : 1.18;
+    const xs = Math.min(HIST, Math.max(30, (S.vx1 - S.vx0) * f)), ys = Math.min(SC, Math.max(8, (S.vy1 - S.vy0) * f));
+    S.vx0 = Math.max(-HIST, S.vx1 - xs); S.vy1 = Math.min(SC, S.vy0 + ys); drawSpec();
+  }, { passive: false });
+});
+</script>
+</body>
+</html>
